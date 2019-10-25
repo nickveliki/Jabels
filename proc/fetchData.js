@@ -15,12 +15,11 @@ const definitions = ({definition, strict}) =>{
                             return true;
                         }
                         if (strict){
-                            let fpath = path.join(__dirname, "../db/",definition.path);
-                            if (!fpath.endsWith(".json")){
-                                fpath+=".json";
+                            
+                            if (typeof(definition)!=="string"){
+                                return item===(path.join(__dirname, "../db", definition.path)+".json");
                             }
-                            console.log(fpath);
-                            return item===fpath;
+                            return item===definition;
                         } 
                         return item.includes(definition)||definition.includes(item);
                     }).map((item)=>{
@@ -116,7 +115,6 @@ const providePath =(fpath)=>{
     while (gfpath.includes(",")){
         gfpath = gfpath.replace(",", path.sep);
     }
-    console.log(gfpath);
     return new Promise((res, rej)=>{
         fs.exists(gfpath, (exists)=>{
             if (!exists){
@@ -146,8 +144,8 @@ const writeDefinition = (definition)=>{
             let message;
             const findIndexed = content.Versions.filter((item)=>item[definition.indexKey]===definition[definition.indexKey]);
             if (findIndexed.length==1){
-                content.Versions[content.Versions.indexOf(findIndexed[0])]=definition;
-                message =  "Version "+definition[definition.indexKey]+" of "+ fpath+" has been sucessfully overwritten";
+                content.Versions[content.Versions.indexOf(findIndexed[0])] = updateObject(findIndexed[0], definition);
+                message =  "Version "+definition[definition.indexKey]+" of "+ fpath+" has been sucessfully updated";
             }else {
                 content.Versions.push(definition);
                 content.Versions.sort((a, b)=>{
@@ -181,10 +179,8 @@ const writeDefinition = (definition)=>{
                     rej(error);
                 } else {
                     providePath(fpath).then((fulfilled)=>{
-                        console.log(fulfilled);
                         fs.writeFile(fpath, JSON.stringify({Versions:[definition], indexKey: definition.indexKey}), (error)=>{
                             if (error){
-                                console.log("writeFile")
                                 rej(error);
                             } else {
                                 res("successfully created "+ fpath);
@@ -201,12 +197,27 @@ const writeDefinition = (definition)=>{
     }
     
 }
-
+const updateObject = (original, update)=>{
+    let combine = {};
+    const updateKeys = Object.keys(update);
+    const restkeys = Object.keys(original).filter((key)=>!updateKeys.includes(key));
+    while (updateKeys.length>0){
+        let key = updateKeys.shift();
+        combine[key] = update[key];
+    }
+    while (restkeys.length>0){
+        let key = restkeys.shift();
+        combine[key] =  original[key];
+    }
+    return combine;
+}
 module.exports = {
     definitions,
     getDefinition,
     getDefinitionProperties,
     writeDefinition, 
     getDefinitionProperty,
-    getTwig
+    getTwig,
+    updateObject
 }
+
