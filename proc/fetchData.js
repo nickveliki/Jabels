@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const parsFunc = require("./parseFunc");
 const defPath = path.join(__dirname, "../db/definitions.json"); 
 const definitions = ({definition, strict}) =>{
     return new Promise((res, rej)=>{
@@ -99,12 +100,33 @@ const getTwig = (definition, Twig)=>{
                 prop = getPropertyProperty(prop, branching.shift());
             }
             if (prop){
+                if (prop.name&&prop.path){
+                    const required = require(prop.path);
+                    res(required[prop.name]);
+                }
                 res(prop);
             }else {
                 rej("dead twig " +Twig + " on "+definition.path);
             }
         }, (rejected)=>{
             rej(rejected);
+        })
+    })
+}
+const getTwigBFD = (definition, twig)=>{
+    return new Promise((res, rej)=>{
+        getTwig(definition, twig).then((fulfilled)=>{
+            res(fulfilled);
+        }, (rejected)=>{
+                if(typeof(rejected)==="string"&&(rejected.startsWith("dead twig")||rejected.includes("not found on"))){
+                    getDefault(definition).then((fulfilled)=>{
+                        res(getTwig(fulfilled, twig));
+                    }, (rejected)=>{
+                        rej(rejected);
+                    })
+                } else {
+                    rej(rejected);
+                }
         })
     })
 }
@@ -155,7 +177,17 @@ const writeDefinition = (definition)=>{
                     );
                 message = "Version " + definition[definition.indexKey] + " of " + fpath+" has been successfully added";
             }
-            fs.writeFile(fpath, JSON.stringify(content), (error)=>{
+            fs.writeFile(fpath, JSON.stringify(content, (key, value)=>{
+                if (typeof(value)==="function"){
+                    parsFunc(definition[definition.indexKey]+"_"+key, value, fpath).then((ful)=>{
+                        console.log(ful);
+                    }, (rej)=>{
+                        console.log(rej);
+                    });
+                    return {name: definition[definition.indexKey]+"_"+key, path: fpath.replace("json", "js")};
+                }
+                return value;
+            }), (error)=>{
                 if (error){
                     rej(error);
                 }else {
@@ -174,7 +206,7 @@ const writeDefinition = (definition)=>{
                 defs = {Definitions: []};
             }
             defs.Definitions.push(fpath);
-            fs.writeFile(defPath, JSON.stringify(defs), (error)=>{
+            fs.writeFile(defPath, JSON.stringify(defs, replacer), (error)=>{
                 if (error){
                     rej(error);
                 } else {
@@ -211,6 +243,38 @@ const updateObject = (original, update)=>{
     }
     return combine;
 }
+const getIndexKey = (definition) => {
+    return new Promise((res, rej)=>{
+        getDefinition(definition).then((fulfilled)=>{
+            res(JSON.parse(fulfilled).indexKey);
+        }, (rejected)=>{
+            rej(rejected);
+        })
+    })
+}
+const getDefault = (definition) =>{
+    return new Promise((res, rej)=>{
+        getDefinition(definition).then((fulfilled)=>{
+            const definition = JSON.parse(fulfilled);
+            let i = 0;
+            const defaultDefinition = definition.Versions.filter((item)=>{
+                let rs = item[definition.indexKey]==="default"||item[definition.indexKey]==0;
+                if (rs){
+                    i++;
+                }
+                if (rs&&i==1){
+                    return true;
+                }
+                return false;
+            });
+            if (defaultDefinition.length==1){
+                res(defaultDefinition[0]);
+            } else {
+                rej("No default definition available");
+            }
+        })
+    })
+}
 module.exports = {
     definitions,
     getDefinition,
@@ -218,6 +282,9 @@ module.exports = {
     writeDefinition, 
     getDefinitionProperty,
     getTwig,
-    updateObject
+    updateObject,
+    getIndexKey,
+    getDefault,
+    getTwigBFD
 }
 
