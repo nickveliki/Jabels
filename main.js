@@ -6,10 +6,8 @@ const basePath = require("./proc/basePath");
 
 //this setup is the recommended way of running if you can't follow my recommendations specified in serve.js
 serve(3000, "db");
-console.log(basePath.getRel().replace("..",""));
 const server = http.createServer((req, res)=>{
     //hide your database and api implementation form direct access
-    console.log(basePath.getRel());
     if (!req.url.startsWith(basePath.getRel().replace(".."+path.sep,"/"))&&!req.url.startsWith("/proc")){
         fs.readFile(req.url==="/"?"index.html":path.join(__dirname, req.url), (err, data)=>{
             if (err){

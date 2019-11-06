@@ -110,7 +110,6 @@ const keystuff = (data, resObj)=>{
 }
 const otos = (o)=>typeof(o)==="object"?JSON.stringify(o):o.toString();
 const urlSwitch = (url)=>{
-    console.log(url);
     return new Promise((res, rej)=>{
         switch(url){
             case "/definition": res(fetchData.definitions);
@@ -165,9 +164,6 @@ module.exports = (port, dbpath)=>{
                     console.log(badRefs[index] +" has been blocked");
                 }
             })
-            if(Refs.length>0){
-                console.log(Refs);
-            }
             Refs.splice(0, Refs.length);
         }, 1000);
         setInterval(()=>{

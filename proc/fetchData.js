@@ -4,7 +4,6 @@ const parsFunc = require("./parseFunc");
 const basePath = require("./basePath");
 const setup = (relpath)=>{
     basePath.setPath("..", relpath);
-    //console.log(basePath.getPath());
     providePath(basePath.getPath());
 }
 const definitions = ({definition, strict}) =>{
