@@ -6,12 +6,16 @@ const timeStamps = [];
 const block = [];
 const Refs = [];
 const server = https.createServer((req, res)=>{
-    if (!block.includes(req.headers.origin)){
+    if (!block.includes(req.headers.referer)){
     Refs.push(req.headers.referer);
     res.setHeader("Access-Control-Allow-Headers", "*");
     res.setHeader("Access-Control-Allow-Origin", "http://localhost:8080"); //adapt this to service your needs. It is not recommended to run the database api and the app on the same domain names due to the mechanism of method call. If you are restricted in domain names, make your API and App listen on different ports
     proc(req, res);
+    }else{
+        req.destroy();
+        res.end();
     }
+    
         
 })
 const proc = (req, res)=>{
