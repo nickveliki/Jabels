@@ -144,8 +144,9 @@ const nextKey = (nkey)=>{
     }
     return returnstatement;
 }
-module.exports = (port)=>{
+module.exports = (port, dbpath)=>{
     try{
+        fetchData.setup(dbpath)
         server.listen(port);
         setInterval(() => {
             let refCounts = [];

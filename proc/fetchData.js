@@ -1,10 +1,15 @@
 const fs = require("fs");
 const path = require("path");
 const parsFunc = require("./parseFunc");
-const defPath = path.join(__dirname, "../db/definitions.json"); 
+const basePath = require("./basePath");
+const setup = (relpath)=>{
+    basePath.setPath("..", relpath);
+    //console.log(basePath.getPath());
+    providePath(basePath.getPath());
+}
 const definitions = ({definition, strict}) =>{
     return new Promise((res, rej)=>{
-        fs.readFile(defPath, (error, data)=>{
+        fs.readFile(path.join(basePath.getPath(), "definitions.json"), (error, data)=>{
             if (error){
                 rej(error);
             } else {
@@ -18,7 +23,7 @@ const definitions = ({definition, strict}) =>{
                         if (strict){
                             
                             if (typeof(definition)!=="string"){
-                                return item===(path.join(__dirname, "../db", definition.path)+".json");
+                                return item===(path.join(basePath.getPath(), definition.path)+".json");
                             }
                             return item===definition;
                         } 
@@ -132,7 +137,9 @@ const getTwigBFD = (definition)=>{
 }
 const providePath =(fpath)=>{
     let gfpath =fpath.split(path.sep);
-    gfpath.pop();
+    if(gfpath[gfpath.length-1].includes(".")){
+        gfpath.pop();
+    }
     gfpath= gfpath.toString();
     while (gfpath.includes(",")){
         gfpath = gfpath.replace(",", path.sep);
@@ -158,7 +165,7 @@ const writeDefinition = (definition)=>{
         //console.log({definition:definition.definition});
     
         if (definition.indexKey&&definition[definition.indexKey]){
-            let fpath = path.join(__dirname, "../db/", definition.path);
+            let fpath = path.join(basePath.getPath(), definition.path);
         if (!fpath.endsWith(".json")){
             fpath+=".json";
         }    
@@ -207,7 +214,7 @@ const writeDefinition = (definition)=>{
             }
             defs.Definitions.push(fpath);
             console.log(defs);
-            fs.writeFile(defPath, JSON.stringify(defs), (error)=>{
+            fs.writeFile(path.join(basePath.getPath(), "definitions.json"), JSON.stringify(defs), (error)=>{
                 if (error){
                     rej(error);
                 } else {
@@ -287,6 +294,7 @@ module.exports = {
     updateObject,
     getIndexKey,
     getDefault,
-    getTwigBFD
+    getTwigBFD,
+    setup
 }
 
