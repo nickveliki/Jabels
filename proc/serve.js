@@ -90,13 +90,24 @@ const keystuff = (data, resObj)=>{
             validKey=true;
             let newKey = nextKey(key);
             const index = activeKeys.indexOf(key);
+            
+            if (!data.retire){
             activeKeys.splice(index, 1, newKey);
             timeStamps.splice(index, 1, wrtdate());
             resObj["nextKey"]=newKey;
+            }else{
+            activeKeys.splice(index, 1);
+            timeStamps.splice(index, 1);
+            resObj["nextKey"]=newKey;
+            //console.log(key + " retired");
+            }
         }
         if (validKey){
             if(data.retrievalHint){
                 const wrtobj = {definition: {path:"regKeys", indexKey:"retrievalHint", retrievalHint:data.retrievalHint, regKey: nextKey(nextKey(resObj["nextKey"]))}};
+                if (data.retire){
+                    resObj["nextKey"]=undefined;
+                }
                 fetchData.writeDefinition(wrtobj).then((ful)=>{
                     resObj["writeKey"]=ful;
                     res("key saved for later use");

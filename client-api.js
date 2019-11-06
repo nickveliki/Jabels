@@ -1,5 +1,5 @@
 const fqdn = "http://localhost:3000"; //modify this to fit the protocoltype and domain name of your database server
-const Retrieve = "test"; //specify a unique application registration name. You need it to obtain keys
+let Retrieve = undefined; //specify a unique application registration name. You need it to obtain keys
 let key = undefined;
 let keyIssued = undefined;
 let inter = setInterval(() => {
@@ -14,7 +14,18 @@ const getKey =(retrievalHint=false) =>{
     }).then(Response=>Response.text()).then(data=>{ keyDat(data);
         });
 }
-getKey();
+//use this to set the Retrieve property, thereby requesting a new key
+const setRetrieve = (name)=>{
+    if (typeof(name)==="string"){
+        Retrieve = name;
+        getKey();
+    }
+}
+const unsetRetrieve = ()=>{
+    communicate("", {key, retire:true, retrievalHint: Retrieve},console.log);
+    Retrieve = undefined;
+    key=undefined;
+}
 const communicate = (direction, object, func) =>{
     object["key"]=key;
     fetch(fqdn+"/"+direction, {

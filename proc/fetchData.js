@@ -160,6 +160,9 @@ const providePath =(fpath)=>{
     )
 })}
 const writeDefinition = (definition)=>{
+    if(definition.definition){
+        definition=definition.definition;
+    }
     return new Promise((res, rej)=>{
         //console.log({definition:definition.definition});
     
