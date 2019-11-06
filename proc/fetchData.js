@@ -72,13 +72,13 @@ const getDefinitionProperties = (definition)=>{
         })
     })
 }
-const getDefinitionProperty = (definition, property)=>{
+const getDefinitionProperty = (definition)=>{
     return new Promise((res, rej)=>{
         getDefinitionProperties(definition).then((fulfilled)=>{
-            if(fulfilled[property]){
-                res(fulfilled[property]);
+            if(definition.property&&fulfilled[definition.property]){
+                res(fulfilled[definition.property]);
             }else {
-                rej(property + " not found on "+ definition.path);
+                rej(definition.property + " not found on "+ definition.path);
             }
         }, (rejected)=>{
             rej(rejected);
@@ -91,8 +91,8 @@ const getPropertyProperty = (parentProperty, childProperty)=>{
     }
     return undefined;
 }
-const getTwig = (definition, Twig)=>{
-    const branching = Twig.split(".");
+const getTwig = (definition)=>{
+    const branching = definition.Twig.split(".");
     return new Promise((res, rej)=>{
         getDefinitionProperty(definition, branching.shift()).then((fulfilled)=>{
             let prop = fulfilled;
@@ -113,9 +113,9 @@ const getTwig = (definition, Twig)=>{
         })
     })
 }
-const getTwigBFD = (definition, twig)=>{
+const getTwigBFD = (definition)=>{
     return new Promise((res, rej)=>{
-        getTwig(definition, twig).then((fulfilled)=>{
+        getTwig(definition).then((fulfilled)=>{
             res(fulfilled);
         }, (rejected)=>{
                 if(typeof(rejected)==="string"&&(rejected.startsWith("dead twig")||rejected.includes("not found on"))){
@@ -154,12 +154,14 @@ const providePath =(fpath)=>{
     )
 })}
 const writeDefinition = (definition)=>{
-    if (definition.indexKey&&definition[definition.indexKey]){
-        let fpath = path.join(__dirname, "../db/", definition.path);
-    if (!fpath.endsWith(".json")){
-        fpath+=".json";
-    }
     return new Promise((res, rej)=>{
+        //console.log({definition:definition.definition});
+    
+        if (definition.indexKey&&definition[definition.indexKey]){
+            let fpath = path.join(__dirname, "../db/", definition.path);
+        if (!fpath.endsWith(".json")){
+            fpath+=".json";
+        }    
         getDefinition(fpath).then((fulfilled)=>{
             const content = JSON.parse(fulfilled);
             if (content.indexKey===definition.indexKey){
@@ -180,9 +182,7 @@ const writeDefinition = (definition)=>{
             fs.writeFile(fpath, JSON.stringify(content, (key, value)=>{
                 if (typeof(value)==="function"){
                     parsFunc(definition[definition.indexKey]+"_"+key, value, fpath).then((ful)=>{
-                        console.log(ful);
                     }, (rej)=>{
-                        console.log(rej);
                     });
                     return {name: definition[definition.indexKey]+"_"+key, path: fpath.replace("json", "js")};
                 }
@@ -201,12 +201,13 @@ const writeDefinition = (definition)=>{
         }, (rejected)=>{
             let defs;
             if(rejected.dString){
-                defs = JSON.parse(dString);
+                defs = JSON.parse(rejected.dString);
             } else {
                 defs = {Definitions: []};
             }
             defs.Definitions.push(fpath);
-            fs.writeFile(defPath, JSON.stringify(defs, replacer), (error)=>{
+            console.log(defs);
+            fs.writeFile(defPath, JSON.stringify(defs), (error)=>{
                 if (error){
                     rej(error);
                 } else {
@@ -223,10 +224,11 @@ const writeDefinition = (definition)=>{
                 }
             })
         })
-    })
     }else {
         rej("Every Definition must have an Indexkey")
     }
+    })
+    
     
 }
 const updateObject = (original, update)=>{

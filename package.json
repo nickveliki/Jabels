@@ -1,0 +1,29 @@
+{
+  "name": "jables",
+  "version": "0.1.0",
+  "description": "JSON flexible database API",
+  "main": "main.js",
+  "scripts": {
+    "test": "test",
+    "start": "node main.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nickveliki/Jabels.git"
+  },
+  "keywords": [
+    "JSON",
+    "flexible",
+    "database",
+    "API"
+  ],
+  "author": "Nickveliki",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/nickveliki/Jabels/issues"
+  },
+  "homepage": "https://github.com/nickveliki/Jabels#readme",
+  "devDependencies": {
+    "nodemon": "^1.19.4"
+  }
+}
