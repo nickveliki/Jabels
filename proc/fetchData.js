@@ -49,12 +49,13 @@ const getDefinition = (definition)=>{
             const path = fulfilled[0];
             fs.readFile(path, (error, data)=>{
                 if (error){
+                    console.log(error);
                     rej(error);
                 } else {
                     res(data.toString());
                 }
             })
-        }, (rejected)=>{rej(rejected)});
+        }, (rejected)=>{console.log(rejected),rej(rejected)});
     })
 }
 const getDefinitionProperties = (definition)=>{
@@ -76,13 +77,60 @@ const getDefinitionProperties = (definition)=>{
         })
     })
 }
+const DeleteVersion = (...definition)=>{
+    return new Promise((res, rej)=>{
+        getDefinition(definition[0]).then((ful)=>{
+            let content = JSON.parse(ful);
+            definition = definition.filter((item)=>!(item[content.indexKey]==="default"||item[content.indexKey]==="0"));
+            let length = content.Versions.length;
+            if (length>0){
+                let indexKeys = true;
+                let i = 0;
+                while(indexKeys&&i<definition.length){
+                    if (!definition[i][content.indexKey]){
+                    indexKeys = false;
+                    }
+                    i++;
+                }
+                if(indexKeys){
+                    definition.forEach((def)=>{
+                        console.log(def);
+                        content.Versions = content.Versions.filter((item)=>(item[content.indexKey]!==def[content.indexKey]));
+                    })
+                }else{
+                    rej("all targets must be specified by " + content.indexKey);
+                }
+                
+            }
+            if (definition.length==0||length>content.Versions.length){
+                if(definition.length>0){
+                    const fpath = ((!definition[0].path.includes(basePath.getPath())?path.join(basePath.getPath(), definition[0].path):definition[0].path) + (!definition[0].path.endsWith(".json")?".json":""));
+                    console.log(fpath);
+                    fs.writeFile(fpath, JSON.stringify(content), (err)=>{
+                        if (err){
+                            rej(err);
+                        }else{
+                            res((length-content.Versions.length) + " of " + definition.length +" targets have been found and successfully deleted");
+                        }
+                    })     
+                }else{
+                    res("nothing to delete, nothing done")
+                }
+            } else{
+                rej("no matching "+content.indexKey+" could be found");
+            }
+        },(nfl)=>{
+            rej(nfl);
+        })
+    })
+}
 const getDefinitionProperty = (definition)=>{
     return new Promise((res, rej)=>{
         getDefinitionProperties(definition).then((fulfilled)=>{
             if(definition.property&&fulfilled[definition.property]){
                 res(fulfilled[definition.property]);
             }else {
-                rej(definition.property + " not found on "+ definition.path);
+                rej(definition.property + " not found on "+ definition[definition.indexKey]);
             }
         }, (rejected)=>{
             rej(rejected);
@@ -98,7 +146,7 @@ const getPropertyProperty = (parentProperty, childProperty)=>{
 const getTwig = (definition)=>{
     const branching = definition.Twig.split(".");
     return new Promise((res, rej)=>{
-        getDefinitionProperty(definition, branching.shift()).then((fulfilled)=>{
+        getDefinitionProperty(updateObject(definition, {property: branching.shift()})).then((fulfilled)=>{
             let prop = fulfilled;
             while(prop!=undefined&&branching.length>0){
                 prop = getPropertyProperty(prop, branching.shift());
@@ -110,9 +158,11 @@ const getTwig = (definition)=>{
                 }
                 res(prop);
             }else {
+                console.log("dead Twig problem");
                 rej("dead twig " +Twig + " on "+definition.path);
             }
         }, (rejected)=>{
+            console.log("getDefinitionProperty problem");
             rej(rejected);
         })
     })
@@ -300,6 +350,7 @@ module.exports = {
     getIndexKey,
     getDefault,
     getTwigBFD,
-    setup
+    setup,
+    DeleteVersion
 }
 
