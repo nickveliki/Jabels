@@ -1,18 +1,16 @@
 const fs = require("fs");
 const path = require("path");
+const basePath = require("./basePath");
 const reqText = (req)=>"const "+req.includes("/")?req.split("/")[req.split("/").length-1]:req+" = require('"+req+"');\r\n"
 //const argstext = (arg, index="")=>"const a" + index + " = "+arg+";\r\n";
 const fromString = (name, fun, p, req=[]) => {
-    if (!p.endsWith(".js")){
-        afterdb=false;
-        p = p.split(path.sep).filter((item)=>{
-            if (item==="db"){
-                afterdb=true;
-                return false;
-            }
-            return afterdb;
-        }).toString().replace(new RegExp(",", 'g'), path.sep);
-        p=path.join(__dirname, "../db", p.endsWith(".json")?p.replace("json", "js"):(p+".js"));
+    if (p.endsWith(".json")){
+        p = p.replace(".json", ".js");
+    }else if (!p.endswith(".js")){
+        p = p+".js";
+    }
+    if(!p.includes(basePath.getPath())){
+        p = basePath.getPath()+p;
     }
     return new Promise((res, rej)=>{
         let ftext = "";

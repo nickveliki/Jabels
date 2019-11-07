@@ -188,7 +188,7 @@ const writeDefinition = (definition)=>{
                     const bk = b[content.indexKey];
                     return ak>bk?+1:-1}
                     );
-                message = "Version " + definition[definition.indexKey] + " of " + fpath+" has been successfully added";
+                message = "Version " + definition[content.indexKey] + " of " + fpath+" has been successfully added";
             }
             fs.writeFile(fpath, JSON.stringify(content, (key, value)=>{
                 if (typeof(value)==="function"){
