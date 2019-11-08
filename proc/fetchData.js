@@ -49,13 +49,12 @@ const getDefinition = (definition)=>{
             const path = fulfilled[0];
             fs.readFile(path, (error, data)=>{
                 if (error){
-                    console.log(error);
                     rej(error);
                 } else {
                     res(data.toString());
                 }
             })
-        }, (rejected)=>{console.log(rejected),rej(rejected)});
+        }, (rejected)=>{rej(rejected)});
     })
 }
 const getDefinitionProperties = (definition)=>{
@@ -214,8 +213,6 @@ const writeDefinition = (definition)=>{
         definition=definition.definition;
     }
     return new Promise((res, rej)=>{
-        //console.log({definition:definition.definition});
-    
         if (definition.indexKey&&definition[definition.indexKey]){
             let fpath = path.join(basePath.getPath(), definition.path);
         if (!fpath.endsWith(".json")){
