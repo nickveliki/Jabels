@@ -31,12 +31,12 @@ const definitions = ({definition, strict}) =>{
                         defs.push(item);
                     })
                 } catch (e){
-                    rej(e);
+                    rej({error:500, message:e.message});
                 }
                 if (defs.length>0){
                     res(defs);
                 } else {
-                    rej({dString});
+                    rej({error: 404, message: definition.path?definition.path:definition, dString});
                 }
                 
             }
@@ -49,7 +49,7 @@ const getDefinition = (definition)=>{
             const path = fulfilled[0];
             fs.readFile(path, (error, data)=>{
                 if (error){
-                    rej(error);
+                    rej({error: 404, message:error.message});
                 } else {
                     res(data.toString());
                 }
@@ -66,10 +66,10 @@ const getDefinitionProperties = (definition)=>{
                 if (findKey.length===1){
                     res(findKey[0]);
                 } else {
-                    rej("no matching indexed property value found");
+                    rej({error: 404, message:"no matching indexed property value found"});
                 }
             } else {
-                rej("indexKeys don't match, can't find appropriate Version");
+                rej({error: 409, message:"indexKeys don't match, can't find appropriate Version"});
             }
         }, (rejected)=>{
             rej(rejected);
@@ -93,21 +93,19 @@ const DeleteVersion = (...definition)=>{
                 }
                 if(indexKeys){
                     definition.forEach((def)=>{
-                        console.log(def);
                         content.Versions = content.Versions.filter((item)=>(item[content.indexKey]!==def[content.indexKey]));
                     })
                 }else{
-                    rej("all targets must be specified by " + content.indexKey);
+                    rej({error: 409, message:"all targets must be specified by " + content.indexKey});
                 }
                 
             }
             if (definition.length==0||length>content.Versions.length){
                 if(definition.length>0){
                     const fpath = ((!definition[0].path.includes(basePath.getPath())?path.join(basePath.getPath(), definition[0].path):definition[0].path) + (!definition[0].path.endsWith(".json")?".json":""));
-                    console.log(fpath);
                     fs.writeFile(fpath, JSON.stringify(content), (err)=>{
                         if (err){
-                            rej(err);
+                            rej({error: 500, message: err});
                         }else{
                             res((length-content.Versions.length) + " of " + definition.length +" targets have been found and successfully deleted");
                         }
@@ -116,7 +114,7 @@ const DeleteVersion = (...definition)=>{
                     res("nothing to delete, nothing done")
                 }
             } else{
-                rej("no matching "+content.indexKey+" could be found");
+                rej({error: 404, message: "no matching "+content.indexKey+" could be found"});
             }
         },(nfl)=>{
             rej(nfl);
@@ -129,7 +127,7 @@ const getDefinitionProperty = (definition)=>{
             if(definition.property&&fulfilled[definition.property]){
                 res(fulfilled[definition.property]);
             }else {
-                rej(definition.property + " not found on "+ definition[definition.indexKey]);
+                rej({error: 404, message:definition.property + " not found on "+ definition[definition.indexKey]});
             }
         }, (rejected)=>{
             rej(rejected);
@@ -158,10 +156,9 @@ const getTwig = (definition)=>{
                 res(prop);
             }else {
                 console.log("dead Twig problem");
-                rej("dead twig " +Twig + " on "+definition.path);
+                rej({error: 404, message: "dead twig " +Twig + " on "+definition.path});
             }
         }, (rejected)=>{
-            console.log("getDefinitionProperty problem");
             rej(rejected);
         })
     })
@@ -197,7 +194,7 @@ const providePath =(fpath)=>{
             if (!exists){
                 fs.mkdir(gfpath, (error)=>{
                     if (error){
-                        rej(error);
+                        rej({error: 500, message: error});
                     } else {
                         res(true);
                     }
@@ -247,7 +244,7 @@ const writeDefinition = (definition)=>{
                 return value;
             }), (error)=>{
                 if (error){
-                    rej(error);
+                    rej({error: 500, message:error});
                 }else {
                     res(message);
                 }
@@ -266,14 +263,14 @@ const writeDefinition = (definition)=>{
             defs.Definitions.push(fpath);
             fs.writeFile(path.join(basePath.getPath(), "definitions.json"), JSON.stringify(defs), (error)=>{
                 if (error){
-                    rej(error);
+                    rej({error: 500, message:error});
                 } else {
                     providePath(fpath).then((fulfilled)=>{
                         let idk = definition.indexKey;
                         definition.indexKey=undefined;
                         fs.writeFile(fpath, JSON.stringify({Versions:[definition], indexKey: idk}), (error)=>{
                             if (error){
-                                rej(error);
+                                rej({error: 500, message:error});
                             } else {
                                 res("successfully created "+ fpath);
                             }
@@ -331,7 +328,7 @@ const getDefault = (definition) =>{
             if (defaultDefinition.length==1){
                 res(defaultDefinition[0]);
             } else {
-                rej("No default definition available");
+                rej({error: 404, message:"No default definition available"});
             }
         })
     })
