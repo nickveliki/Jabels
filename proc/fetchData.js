@@ -271,6 +271,35 @@ const getDefault = (definition) =>{
         })
     })
 }
+const DeleteVersion = (...definitions)=>new Promise((res, rej)=>{
+    let samepath = true;
+    if(definitions.length > 1){
+        for (let i = 1; i < definitions.length&&samepath; i++){
+            samepath = definitions[i].path===definitions[i-1].path;
+        }
+    }
+    if (!samepath){
+        rej({error: 409, message:"can only target versions of the same definition together"});
+    } else{
+        getDefinition(definition[0]).then((ful)=>{
+            const def = JSON.parse(ful);
+            const indexes = definitions.map((item)=>item[def.indexKey]);
+            def.Versions = def.Versions.filter((item)=>!indexes.includes(item[def.indexKey]));
+            fs.writeFile(path.join(basePath.getPath(), def.path), JSON.stringify(def), (error)=>{
+                if(error){
+                    rej({error: 500, message:error});
+                }else{
+                    res("Deletion complete");
+                }
+            })
+        }, (nfl)=>{rej(nfl)})
+    }
+    
+    
+    
+})
+
+
 module.exports = {
     definitions,
     getDefinition,
@@ -282,6 +311,7 @@ module.exports = {
     getIndexKey,
     getDefault,
     getTwigBFD,
-    setup
+    setup,
+    DeleteVersion
 }
 
