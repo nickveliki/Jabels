@@ -139,26 +139,14 @@ const providePath =(fpath)=>{
     if(gfpath[gfpath.length-1].includes(".")){
         gfpath.pop();
     }
-    gfpath= gfpath.toString();
-    while (gfpath.includes(",")){
-        gfpath = gfpath.replace(",", path.sep);
+    let pathwrite = "";
+    while(gfpath.length>0){
+        pathwrite+=gfpath.shift()+path.sep;
+            if (!fs.existsSync(pathwrite)){
+                fs.mkdirSync(pathwrite);
+            } 
+        }
     }
-    return new Promise((res, rej)=>{
-        fs.exists(gfpath, (exists)=>{
-            if (!exists){
-                fs.mkdir(gfpath, (error)=>{
-                    if (error){
-                        rej(error);
-                    } else {
-                        res(true);
-                    }
-                });
-            } else {
-                res(true);
-            }    
-        }  
-    )
-})}
 const writeDefinition = (definition)=>{
     return new Promise((res, rej)=>{
         //console.log({definition:definition.definition});
@@ -217,15 +205,15 @@ const writeDefinition = (definition)=>{
                 if (error){
                     rej(error);
                 } else {
-                    providePath(fpath).then((fulfilled)=>{
-                        fs.writeFile(fpath, JSON.stringify({Versions:[definition], indexKey: definition.indexKey}), (error)=>{
-                            if (error){
-                                rej(error);
-                            } else {
-                                res("successfully created "+ fpath);
-                            }
-                        });
-                    }, (rejected)=>{rej(rejected)});
+                    providePath(fpath);
+                    fs.writeFile(fpath, JSON.stringify({Versions:[definition], indexKey: definition.indexKey}), (error)=>{
+                        if (error){
+                            rej(error);
+                        } else {
+                            res("successfully created "+ fpath);
+                        }
+                    });
+                    
                     
                 }
             })
@@ -283,6 +271,35 @@ const getDefault = (definition) =>{
         })
     })
 }
+const DeleteVersion = (...definitions)=>new Promise((res, rej)=>{
+    let samepath = true;
+    if(definitions.length > 1){
+        for (let i = 1; i < definitions.length&&samepath; i++){
+            samepath = definitions[i].path===definitions[i-1].path;
+        }
+    }
+    if (!samepath){
+        rej({error: 409, message:"can only target versions of the same definition together"});
+    } else{
+        getDefinition(definition[0]).then((ful)=>{
+            const def = JSON.parse(ful);
+            const indexes = definitions.map((item)=>item[def.indexKey]);
+            def.Versions = def.Versions.filter((item)=>!indexes.includes(item[def.indexKey]));
+            fs.writeFile(path.join(basePath.getPath(), def.path), JSON.stringify(def), (error)=>{
+                if(error){
+                    rej({error: 500, message:error});
+                }else{
+                    res("Deletion complete");
+                }
+            })
+        }, (nfl)=>{rej(nfl)})
+    }
+    
+    
+    
+})
+
+
 module.exports = {
     definitions,
     getDefinition,
@@ -294,6 +311,7 @@ module.exports = {
     getIndexKey,
     getDefault,
     getTwigBFD,
-    setup
+    setup,
+    DeleteVersion
 }
 
