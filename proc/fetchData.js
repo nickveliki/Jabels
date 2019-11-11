@@ -205,15 +205,15 @@ const writeDefinition = (definition)=>{
                 if (error){
                     rej(error);
                 } else {
-                    providePath(fpath).then((fulfilled)=>{
-                        fs.writeFile(fpath, JSON.stringify({Versions:[definition], indexKey: definition.indexKey}), (error)=>{
-                            if (error){
-                                rej(error);
-                            } else {
-                                res("successfully created "+ fpath);
-                            }
-                        });
-                    }, (rejected)=>{rej(rejected)});
+                    providePath(fpath);
+                    fs.writeFile(fpath, JSON.stringify({Versions:[definition], indexKey: definition.indexKey}), (error)=>{
+                        if (error){
+                            rej(error);
+                        } else {
+                            res("successfully created "+ fpath);
+                        }
+                    });
+                    
                     
                 }
             })
