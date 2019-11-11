@@ -281,11 +281,12 @@ const DeleteVersion = (...definitions)=>new Promise((res, rej)=>{
     if (!samepath){
         rej({error: 409, message:"can only target versions of the same definition together"});
     } else{
-        getDefinition(definition[0]).then((ful)=>{
+        getDefinition(definitions[0]).then((ful)=>{
             const def = JSON.parse(ful);
             const indexes = definitions.map((item)=>item[def.indexKey]);
             def.Versions = def.Versions.filter((item)=>!indexes.includes(item[def.indexKey]));
-            fs.writeFile(path.join(basePath.getPath(), def.path), JSON.stringify(def), (error)=>{
+            console.log(def.Versions)
+            fs.writeFile(path.join(basePath.getPath(), definitions[0].path+".json"), JSON.stringify(def), (error)=>{
                 if(error){
                     rej({error: 500, message:error});
                 }else{
