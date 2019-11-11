@@ -180,6 +180,9 @@ const writeDefinition = (definition)=>{
                     });
                     return {name: definition[definition.indexKey]+"_"+key, path: fpath.replace("json", "js")};
                 }
+                if(key==="path"||key==="indexKey"){
+                    return undefined;
+                }
                 return value;
             }), (error)=>{
                 if (error){
