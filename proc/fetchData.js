@@ -65,6 +65,7 @@ const getDefinitionProperties = (definition)=>{
             if (definition.indexKey===content.indexKey){
                 const findKey = content.Versions.filter((item)=>item[definition.indexKey]===definition[definition.indexKey]);
                 if (findKey.length===1){
+                    console.log("resolved");
                     res(findKey[0]);
                 } else {
                     rej("no matching indexed property value found");
