@@ -175,14 +175,21 @@ const writeDefinition = (definition)=>{
                 message = "Version " + definition[definition.indexKey] + " of " + fpath+" has been successfully added";
             }
             fs.writeFile(fpath, JSON.stringify(content, (key, value)=>{
+                let indexKeyCount = false;
                 if (typeof(value)==="function"){
                     parsFunc(definition[definition.indexKey]+"_"+key, value, fpath).then((ful)=>{
                     }, (rej)=>{
                     });
                     return {name: definition[definition.indexKey]+"_"+key, path: fpath.replace("json", "js")};
                 }
-                if(key==="path"||key==="indexKey"){
+                if(key==="path"){
                     return undefined;
+                }
+                if (key==="indexKey"){
+                    if (indexKeyCount){
+                        return undefined;
+                    }
+                    indexKeyCount = true;
                 }
                 return value;
             }), (error)=>{
