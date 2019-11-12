@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const parsFunc = require("./parseFunc");
 const basePath = require("./basePath");
+const callFunc = require("./callFunc");
 const setup = (relpath)=>{
     basePath.setPath("..", relpath);
     providePath(basePath.getPath());
@@ -105,8 +106,8 @@ const getTwig = (definition)=>{
             }
             if (prop){
                 if (prop.name&&prop.path){
-                    const required = require(prop.path);
-                    res(required[prop.name]);
+                    const required = callFunc(prop.path, prop.name, definition.args);
+                    res(required);
                 }
                 res(prop);
             }else {
