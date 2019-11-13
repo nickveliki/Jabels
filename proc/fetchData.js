@@ -11,38 +11,71 @@ const definitions = ({definition, strict}) =>{
     return new Promise((res, rej)=>{
         fs.readFile(path.join(basePath.getPath(), "definitions.json"), (error, data)=>{
             if (error){
-                rej(error);
+                rej({error:404, message:error});
             } else {
                 const dString = data.toString();
                 const defs = [];
                 try{
-                    JSON.parse(dString).Definitions.filter((item)=>{
-                        if (!definition){
-                            return true;
+                    const Definitions = JSON.parse(dString).Definitions;
+                    if (strict){
+                        let searchterm;
+                        if (typeof(definition)!=="string"){
+                            searchterm = (path.join(basePath.getPath(), definition.path)+".json");
+                        }else{
+                            searchterm=definition;
                         }
-                        if (strict){
-                            
-                            if (typeof(definition)!=="string"){
-                                return item===(path.join(basePath.getPath(), definition.path)+".json");
+                        defs.push(searchDefinition(Definitions, searchterm));
+                    }else{
+                        Definitions.filter((item)=>{
+                            if (!definition){
+                                return true;
                             }
-                            return item===definition;
-                        } 
-                        return item.includes(definition)||definition.includes(item);
-                    }).map((item)=>{
-                        defs.push(item);
-                    })
+                            return item.includes(definition)||definition.includes(item);
+                        }).map((item)=>{
+                            defs.push(item);
+                        })
+                    } 
+                    
                 } catch (e){
-                    rej(e);
+                    rej({error: 500, message:e});
                 }
                 if (defs.length>0){
                     res(defs);
                 } else {
-                    rej({dString});
+                    rej({error: 404, message: dString, dString});
                 }
                 
             }
         })
     })
+}
+const searchDefinition = (definition, indexKeyValue, exact=true, index=false)=>{
+    if(typeof(indexKeyValue)!=="string"){
+        if(indexKeyValue[definition.indexKey]){
+            indexKeyValue=indexKeyValue[definition.indexKey];
+        }else{
+            return index?-1:undefined;
+        }
+    }
+    if (definition.Versions&&definition.Versions.length>0||Array.isArray(definition)){
+        let search = definition.Versions?definition.Versions.map((item)=>item):definition.map((item)=>item);
+        let bound = Math.round(search.length/2);
+        while(search.length>1){
+            if (indexKeyValue<(Array.isArray(definition)?search[bound]:search[bound][definition.indexKey])){
+                search.splice(bound, search.length-bound);
+            }else{
+                search.splice(0, bound);
+            }
+            bound=Math.round(search.length/2);
+        }
+        if(!exact||search[0]===indexKeyValue||search[0][definition.indexKey]===indexKeyValue){
+            if(index){
+                return Array.isArray(definition)?definition.indexOf(search[0]):definition.Versions.indexOf(search[0]);
+            }
+            return search[0];
+        }
+    }
+    return index?-1:undefined;
 }
 const getDefinition = (definition)=>{
     return new Promise((res, rej)=>{
@@ -50,7 +83,7 @@ const getDefinition = (definition)=>{
             const path = fulfilled[0];
             fs.readFile(path, (error, data)=>{
                 if (error){
-                    rej(error);
+                    rej({error:404, message:error});
                 } else {
                     res(data.toString());
                 }
@@ -63,15 +96,14 @@ const getDefinitionProperties = (definition)=>{
         getDefinition(definition).then((fulfilled)=>{
             const content = JSON.parse(fulfilled);
             if (definition.indexKey===content.indexKey){
-                const findKey = content.Versions.filter((item)=>item[definition.indexKey]===definition[definition.indexKey]);
-                if (findKey.length===1){
-                    console.log("resolved");
-                    res(findKey[0]);
+                const findKey = searchDefinition(content, definition);
+                if (findKey){
+                    res(findKey);
                 } else {
-                    rej("no matching indexed property value found");
+                    rej({error:404, message:"no matching indexed property value found"});
                 }
             } else {
-                rej("indexKeys don't match, can't find appropriate Version");
+                rej({error:409, message:"indexKeys don't match, can't find appropriate Version"});
             }
         }, (rejected)=>{
             rej(rejected);
@@ -84,7 +116,7 @@ const getDefinitionProperty = (definition)=>{
             if(definition.property&&fulfilled[definition.property]){
                 res(fulfilled[definition.property]);
             }else {
-                rej(definition.property + " not found on "+ definition.path);
+                rej({error:404, message:definition.property + " not found on "+ definition.path});
             }
         }, (rejected)=>{
             rej(rejected);
@@ -112,7 +144,7 @@ const getTwig = (definition)=>{
                 }
                 res(prop);
             }else {
-                rej("dead twig " +Twig + " on "+definition.path);
+                rej({error:404, message:"dead twig " +Twig + " on "+definition.path});
             }
         }, (rejected)=>{
             rej(rejected);
@@ -157,51 +189,44 @@ const writeDefinition = (definition)=>{
             let fpath = path.join(basePath.getPath(), definition.path);
         if (!fpath.endsWith(".json")){
             fpath+=".json";
-        }    
+        }
+        definition.path=undefined;
+        const indexKey = definition.indexKey;
+        definition.indexKey=undefined;    
         getDefinition(fpath).then((fulfilled)=>{
             const content = JSON.parse(fulfilled);
-            if (content.indexKey===definition.indexKey){
+            if (content.indexKey===indexKey){
             let message;
-            const findIndexed = content.Versions.filter((item)=>item[definition.indexKey]===definition[definition.indexKey]);
+            const findIndexed = content.Versions.filter((item)=>item[indexKey]===definition[indexKey]);
             if (findIndexed.length==1){
                 content.Versions[content.Versions.indexOf(findIndexed[0])] = updateObject(findIndexed[0], definition);
-                message =  "Version "+definition[definition.indexKey]+" of "+ fpath+" has been sucessfully updated";
+                message =  "Version "+definition[indexKey]+" of "+ fpath+" has been sucessfully updated";
             }else {
                 content.Versions.push(definition);
                 content.Versions.sort((a, b)=>{
-                    const ak = a[definition.indexKey];
-                    const bk = b[definition.indexKey];
+                    const ak = a[indexKey];
+                    const bk = b[indexKey];
                     return ak>bk?+1:-1}
                     );
-                message = "Version " + definition[definition.indexKey] + " of " + fpath+" has been successfully added";
+                message = "Version " + definition[indexKey] + " of " + fpath+" has been successfully added";
             }
             fs.writeFile(fpath, JSON.stringify(content, (key, value)=>{
-                let indexKeyCount = false;
                 if (typeof(value)==="function"){
-                    parsFunc(definition[definition.indexKey]+"_"+key, value, fpath).then((ful)=>{
+                    parsFunc(definition[indexKey]+"_"+key, value, fpath).then((ful)=>{
                     }, (rej)=>{
                     });
-                    return {name: definition[definition.indexKey]+"_"+key, path: fpath.replace("json", "js")};
-                }
-                if(key==="path"){
-                    return undefined;
-                }
-                if (key==="indexKey"){
-                    if (indexKeyCount){
-                        return undefined;
-                    }
-                    indexKeyCount = true;
+                    return {name: definition[indexKey]+"_"+key, path: fpath.replace("json", "js")};
                 }
                 return value;
             }), (error)=>{
                 if (error){
-                    rej(error);
+                    rej({error:500, message:error});
                 }else {
                     res(message);
                 }
             } )
             } else {
-                rej("indexKeys must match");
+                rej({error:409, message:"indexKeys must match"});
             }
             
         }, (rejected)=>{
@@ -215,12 +240,12 @@ const writeDefinition = (definition)=>{
             console.log(defs);
             fs.writeFile(path.join(basePath.getPath(), "definitions.json"), JSON.stringify(defs), (error)=>{
                 if (error){
-                    rej(error);
+                    rej({error:500, message:error});
                 } else {
                     providePath(fpath);
-                    fs.writeFile(fpath, JSON.stringify({Versions:[definition], indexKey: definition.indexKey}), (error)=>{
+                    fs.writeFile(fpath, JSON.stringify({Versions:[definition], indexKey: indexKey}), (error)=>{
                         if (error){
-                            rej(error);
+                            rej({error:500, message:error});
                         } else {
                             res("successfully created "+ fpath);
                         }
@@ -231,7 +256,7 @@ const writeDefinition = (definition)=>{
             })
         })
     }else {
-        rej("Every Definition must have an Indexkey")
+        rej({error:409, message:"Every Definition must have an Indexkey"})
     }
     })
     
@@ -278,7 +303,7 @@ const getDefault = (definition) =>{
             if (defaultDefinition.length==1){
                 res(defaultDefinition[0]);
             } else {
-                rej("No default definition available");
+                rej({error:404, message:"No default definition available"});
             }
         })
     })
@@ -325,6 +350,7 @@ module.exports = {
     getDefault,
     getTwigBFD,
     setup,
-    DeleteVersion
+    DeleteVersion,
+    searchDefinition
 }
 
