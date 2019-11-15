@@ -24,7 +24,10 @@ const definitions = ({definition, strict}) =>{
                         }else{
                             searchterm=definition;
                         }
-                        defs.push(searchDefinition(Definitions, searchterm));
+                        const search = searchDefinition(Definitions, searchterm);
+                        if(search){
+                            defs.push(search);
+                        }
                     }else{
                         Definitions.filter((item)=>{
                             if (!definition){
@@ -183,8 +186,6 @@ const providePath =(fpath)=>{
     }
 const writeDefinition = (definition)=>{
     return new Promise((res, rej)=>{
-        //console.log({definition:definition.definition});
-    
         if (definition.indexKey&&definition[definition.indexKey]){
             let fpath = path.join(basePath.getPath(), definition.path);
         if (!fpath.endsWith(".json")){
@@ -237,7 +238,6 @@ const writeDefinition = (definition)=>{
                 defs = {Definitions: []};
             }
             defs.Definitions.push(fpath);
-            console.log(defs);
             fs.writeFile(path.join(basePath.getPath(), "definitions.json"), JSON.stringify(defs), (error)=>{
                 if (error){
                     rej({error:500, message:error});
@@ -322,7 +322,6 @@ const DeleteVersion = (...definitions)=>new Promise((res, rej)=>{
             const def = JSON.parse(ful);
             const indexes = definitions.map((item)=>item[def.indexKey]);
             def.Versions = def.Versions.filter((item)=>!indexes.includes(item[def.indexKey]));
-            console.log(def.Versions)
             fs.writeFile(path.join(basePath.getPath(), definitions[0].path+".json"), JSON.stringify(def), (error)=>{
                 if(error){
                     rej({error: 500, message:error});
