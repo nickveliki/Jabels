@@ -1,7 +1,6 @@
 const fs = require("fs");
 const basepath = require("./basePath");
 const path = require("path");
-console.log(basepath.getPath());
 const backupPath = path.join(basepath.getPath(), "..", "dback");
 const times = [];
 let longestbackup = 0;

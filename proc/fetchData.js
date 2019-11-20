@@ -6,7 +6,6 @@ const callFunc = require("./callFunc");
 const setup = (relpath, backupinterval=60)=>{
     basePath.setPath("..", relpath);
     const backup = require("./backup");
-    console.log(basePath.getPath());
     providePath(basePath.getPath());
     backup();
     providePath(path.join(basePath.getPath(), "..", "dback"));
@@ -60,7 +59,7 @@ const definitions = ({definition, strict}) =>{
     })
 }
 const searchDefinition = (definition, indexKeyValue, exact=true, index=false)=>{
-    if(typeof(indexKeyValue)!=="string"){
+    if(!(typeof(indexKeyValue)==="string"||typeof(indexKeyValue)==="number")){
         if(indexKeyValue[definition.indexKey]){
             indexKeyValue=indexKeyValue[definition.indexKey];
         }else{
@@ -193,26 +192,77 @@ const providePath =(fpath)=>{
     }
 const writeDefinition = (definition)=>{
     return new Promise((res, rej)=>{
-        if (definition.indexKey&&definition[definition.indexKey]){
-            let fpath = path.join(basePath.getPath(), definition.path);
-        if (!fpath.endsWith(".json")){
-            fpath+=".json";
+        let fpath;
+        let indexKey;
+        let good = true;
+        if (Array.isArray(definition)&&definition[0].indexKey){
+            indexKey = definition[0].indexKey;
+            console.log(indexKey);
+            let indexKeyValue;
+            definition.sort((a, b)=>a[indexKey]<b[indexKey]?-1:1)
+            definition = definition.filter((item)=>{
+            if (indexKeyValue==undefined||indexKeyValue!=item[indexKey]){
+                indexKeyValue = item[indexKey];
+                return true;
+                }
+                return false;
+            })
+            definition.forEach((item)=>{
+                if (!fpath){
+                    fpath = path.join(basePath.getPath(), item.path);
+                    if (!fpath.endsWith(".json")){
+                        fpath+=".json";
+                    }
+                } else {
+                    if (!fpath.includes(item.path)){
+                        console.log(item, "path");
+                        good = false;
+                    }
+                }
+                if (item[indexKey]===undefined){
+                    console.log(item, "indexKey");
+                    good = false;
+                }
+                item.path = undefined;
+                if (item.indexKey){
+                    item.indexKey = undefined;
+                }
+            })
+        }else{
+            if (definition.indexKey&&definition[definition.indexKey]){
+                fpath = path.join(basePath.getPath(), definition.path);
+                definition.path=undefined;
+                indexKey = definition.indexKey;
+                definition.indexKey=undefined;    
+            if (!fpath.endsWith(".json")){
+                fpath+=".json";
+            }
+        } else {
+            good = false;
         }
-        definition.path=undefined;
-        const indexKey = definition.indexKey;
-        definition.indexKey=undefined;    
+        
+    }
+    if (good){
         getDefinition(fpath).then((fulfilled)=>{
             const content = JSON.parse(fulfilled);
             if (content.indexKey===indexKey){
-            let message;
-            const findIndexed = content.Versions.filter((item)=>item[indexKey]===definition[indexKey]);
-            if (findIndexed.length==1){
-                content.Versions[content.Versions.indexOf(findIndexed[0])] = updateObject(findIndexed[0], definition);
-                message =  "Version "+definition[indexKey]+" of "+ fpath+" has been sucessfully updated";
-            }else {
+            const message = [];
+            const updateadd = (definition)=>{
                 const index = searchDefinition(content, definition[indexKey], false, true);
-                content.Versions.splice(index==0?definition[indexKey]<content.Versions[0][indexKey]?0:1:index+1, 0, definition);
-                message = "Version " + definition[indexKey] + " of " + fpath+" has been successfully added";
+                if (content.Versions[index][indexKey]===definition[indexKey]){
+                    content.Versions[index] = updateObject(content.Versions[index], definition);
+                    message.push("Version "+definition[indexKey]+" of "+ fpath+" has been sucessfully updated");
+                }else {
+                    content.Versions.splice(index==0?definition[indexKey]<content.Versions[0][indexKey]?0:1:index+1, 0, definition);
+                    message.push("Version " + definition[indexKey] + " of " + fpath+" has been successfully added");
+                }
+            }
+            if (Array.isArray(definition)){
+                definition.forEach((item)=>{
+                    updateadd(item)
+                })
+            }else {
+                updateadd(definition);
             }
             fs.writeFile(fpath, JSON.stringify(content, (key, value)=>{
                 if (typeof(value)==="function"){
@@ -240,14 +290,14 @@ const writeDefinition = (definition)=>{
             } else {
                 defs = {Definitions: []};
             }
-            defs.Definitions.push(fpath);
-            defs.Definitions.sort();
+            const defind = defs.Definitions.length>0?searchDefinition(defs.Definitions, fpath, false, true):0;
+            defs.Definitions.splice(defind==0&&defs.Definitions.length>0?fpath>defs.Definitions[0]?1:0:defind, 0, fpath);
             fs.writeFile(path.join(basePath.getPath(), "definitions.json"), JSON.stringify(defs), (error)=>{
                 if (error){
                     rej({error:500, message:error});
                 } else {
-                    providePath(fpath);
-                    fs.writeFile(fpath, JSON.stringify({Versions:[definition], indexKey: indexKey}), (error)=>{
+                    providePath(fpath);                 
+                    fs.writeFile(fpath, JSON.stringify({Versions:Array.isArray(definition)?definition:[definition], indexKey: indexKey}), (error)=>{
                         if (error){
                             rej({error:500, message:error});
                         } else {
