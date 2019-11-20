@@ -241,6 +241,7 @@ const writeDefinition = (definition)=>{
                 defs = {Definitions: []};
             }
             defs.Definitions.push(fpath);
+            defs.Definitions.sort();
             fs.writeFile(path.join(basePath.getPath(), "definitions.json"), JSON.stringify(defs), (error)=>{
                 if (error){
                     rej({error:500, message:error});
