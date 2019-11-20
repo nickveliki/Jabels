@@ -4,7 +4,8 @@ const key = "48F45558F75902B7EBBDF2D815A1D4109146CC56C985B3571BC2F40A3899B6B399B
 const activeKeys = [];
 const timeStamps = [];
 const block = [];
-const Refs = [];
+const Refs = [];    
+
 const server = https.createServer((req, res)=>{
     if (!block.includes(req.headers.referer)){
     Refs.push(req.headers.referer);
@@ -158,9 +159,9 @@ const nextKey = (nkey)=>{
     }
     return returnstatement;
 }
-module.exports = (port, dbpath)=>{
+module.exports = (port, dbpath, backupinterval=60)=>{
     try{
-        fetchData.setup(dbpath)
+        fetchData.setup(dbpath, backupinterval);
         server.listen(port);
         setInterval(() => {
             let refCounts = [];

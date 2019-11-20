@@ -3,9 +3,16 @@ const path = require("path");
 const parsFunc = require("./parseFunc");
 const basePath = require("./basePath");
 const callFunc = require("./callFunc");
-const setup = (relpath)=>{
+const setup = (relpath, backupinterval=60)=>{
     basePath.setPath("..", relpath);
+    const backup = require("./backup");
+    console.log(basePath.getPath());
     providePath(basePath.getPath());
+    backup();
+    providePath(path.join(basePath.getPath(), "..", "dback"));
+    setInterval(()=>{
+        backup();
+    }, backupinterval*60000);
 }
 const definitions = ({definition, strict}) =>{
     return new Promise((res, rej)=>{
@@ -203,12 +210,8 @@ const writeDefinition = (definition)=>{
                 content.Versions[content.Versions.indexOf(findIndexed[0])] = updateObject(findIndexed[0], definition);
                 message =  "Version "+definition[indexKey]+" of "+ fpath+" has been sucessfully updated";
             }else {
-                content.Versions.push(definition);
-                content.Versions.sort((a, b)=>{
-                    const ak = a[indexKey];
-                    const bk = b[indexKey];
-                    return ak>bk?+1:-1}
-                    );
+                const index = searchDefinition(content, definition[indexKey], false, true);
+                content.Versions.splice(index==0?definition[indexKey]<content.Versions[0][indexKey]?0:1:index+1, 0, definition);
                 message = "Version " + definition[indexKey] + " of " + fpath+" has been successfully added";
             }
             fs.writeFile(fpath, JSON.stringify(content, (key, value)=>{
