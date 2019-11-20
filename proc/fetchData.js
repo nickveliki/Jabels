@@ -197,7 +197,6 @@ const writeDefinition = (definition)=>{
         let good = true;
         if (Array.isArray(definition)&&definition[0].indexKey){
             indexKey = definition[0].indexKey;
-            console.log(indexKey);
             let indexKeyValue;
             definition.sort((a, b)=>a[indexKey]<b[indexKey]?-1:1)
             definition = definition.filter((item)=>{
