@@ -192,121 +192,152 @@ const providePath =(fpath)=>{
     }
 const writeDefinition = (definition)=>{
     return new Promise((res, rej)=>{
-        let fpath;
-        let indexKey;
         let good = true;
-        if (Array.isArray(definition)&&definition[0].indexKey){
-            indexKey = definition[0].indexKey;
+        const fpath = [];
+        if (!Array.isArray(definition)){
+            if (!(definition.path&&definition.indexKey&&definition[definition.indexKey]!==undefined)){
+                good = false;
+            }else{
+                definition = [definition];
+                fpath.push({path: path.join(basePath.getPath(), definition.path), indexKey: definition.indexKey, count: 1});
+                definition.indexKey = undefined;
+                definition.path=undefined;
+            }
+        }else{
+            const sort = {};
+            while(definition.length>0){
+                let item = definition.shift();
+                if (!Object.keys(sort).includes(item.indexKey)){
+                    sort[item.indexKey]=[item];
+                }else{
+                    sort[item.indexKey].push(item);
+                }
+            }
+            const sortAgain = {}
+            Object.keys(sort).forEach((key)=>{
+                const resort = {};
+                sort[key].forEach((item)=>{
+                    if (!Object.keys(resort).includes(item[item.indexKey])){
+                        resort[item[item.indexKey]]=item;
+                    }
+                })
+                const sortray = []
+                Object.keys(resort).forEach((key)=>{
+                    sortray.push(resort[key]);
+                })
+                sortAgain[key] = sortray.sort((a, b)=>{a[key]<b[key]?-1:1});
+            });
+            const order = Object.keys(sortAgain).sort((a, b)=>{a<b?-1:1});
+            while(order.length>0){
+                definition.push(...sortAgain[order.shift()]);
+            }
+            fs.writeFileSync(path.join(basePath.getPath(), "log.txt"), JSON.stringify(definition));
+            let indexKey;
             let indexKeyValue;
-            definition.sort((a, b)=>a[indexKey]<b[indexKey]?-1:1)
+            let ipath;
             definition = definition.filter((item)=>{
-            if (indexKeyValue==undefined||indexKeyValue!=item[indexKey]){
+            if (!item.path||!item.indexKey||item[item.indexKey]==undefined){
+                good = false;
+            }
+            if (!ipath||ipath!==item.path){
+                ipath = item.path;
+                indexKey = item.indexKey;
                 indexKeyValue = item[indexKey];
-                return true;
+                fpath.push({path: path.join(basePath.getPath(), item.path), indexKey: item.indexKey, count: 1});
+                if (!fpath[fpath.length-1].path.endsWith(".json")){
+                fpath[fpath.length-1].path+=".json";
+                }
+                item.path = undefined;
+                item.indexKey=undefined;
+                return good;
+            }
+            if (item.indexKey===indexKey&&(indexKeyValue==undefined||indexKeyValue!=item[indexKey])){
+                item.path = undefined;
+                item.indexKey=undefined;
+                indexKeyValue = item[item.indexKey];
+                fpath[fpath.length-1].count++;
+                return good;
                 }
                 return false;
             })
-            definition.forEach((item)=>{
-                if (!fpath){
-                    fpath = path.join(basePath.getPath(), item.path);
-                    if (!fpath.endsWith(".json")){
-                        fpath+=".json";
-                    }
-                } else {
-                    if (!fpath.includes(item.path)){
-                        console.log(item, "path");
-                        good = false;
-                    }
-                }
-                if (item[indexKey]===undefined){
-                    console.log(item, "indexKey");
-                    good = false;
-                }
-                item.path = undefined;
-                if (item.indexKey){
-                    item.indexKey = undefined;
-                }
-            })
-        }else{
-            if (definition.indexKey&&definition[definition.indexKey]){
-                fpath = path.join(basePath.getPath(), definition.path);
-                definition.path=undefined;
-                indexKey = definition.indexKey;
-                definition.indexKey=undefined;    
-            if (!fpath.endsWith(".json")){
-                fpath+=".json";
-            }
-        } else {
-            good = false;
-        }
-        
-    }
-    if (good){
-        getDefinition(fpath).then((fulfilled)=>{
-            const content = JSON.parse(fulfilled);
-            if (content.indexKey===indexKey){
-            const message = [];
-            const updateadd = (definition)=>{
-                const index = searchDefinition(content, definition[indexKey], false, true);
-                if (content.Versions[index][indexKey]===definition[indexKey]){
-                    content.Versions[index] = updateObject(content.Versions[index], definition);
-                    message.push("Version "+definition[indexKey]+" of "+ fpath+" has been sucessfully updated");
-                }else {
-                    content.Versions.splice(index==0?definition[indexKey]<content.Versions[0][indexKey]?0:1:index+1, 0, definition);
-                    message.push("Version " + definition[indexKey] + " of " + fpath+" has been successfully added");
-                }
-            }
-            if (Array.isArray(definition)){
-                definition.forEach((item)=>{
-                    updateadd(item)
-                })
-            }else {
-                updateadd(definition);
-            }
-            fs.writeFile(fpath, JSON.stringify(content, (key, value)=>{
-                if (typeof(value)==="function"){
-                    parsFunc(definition[indexKey]+"_"+key, value, fpath).then((ful)=>{
-                    }, (rej)=>{
-                    });
-                    return {name: definition[indexKey]+"_"+key, path: fpath.replace("json", "js")};
-                }
-                return value;
-            }), (error)=>{
-                if (error){
-                    rej({error:500, message:error});
-                }else {
-                    res(message);
-                }
-            } )
-            } else {
-                rej({error:409, message:"indexKeys must match"});
-            }
             
-        }, (rejected)=>{
-            let defs;
-            if(rejected.dString){
-                defs = JSON.parse(rejected.dString);
-            } else {
-                defs = {Definitions: []};
-            }
-            const defind = defs.Definitions.length>0?searchDefinition(defs.Definitions, fpath, false, true):0;
-            defs.Definitions.splice(defind==0&&defs.Definitions.length>0?fpath>defs.Definitions[0]?1:0:defind, 0, fpath);
-            fs.writeFile(path.join(basePath.getPath(), "definitions.json"), JSON.stringify(defs), (error)=>{
-                if (error){
-                    rej({error:500, message:error});
-                } else {
-                    providePath(fpath);                 
-                    fs.writeFile(fpath, JSON.stringify({Versions:Array.isArray(definition)?definition:[definition], indexKey: indexKey}), (error)=>{
-                        if (error){
-                            rej({error:500, message:error});
-                        } else {
-                            res("successfully created "+ fpath);
+        }
+    if (good){
+        const message = [];
+        const updateadd = (content, definition, fpath)=>{
+            const indexKey = content.indexKey;
+            const index = searchDefinition(content, definition[indexKey], false, true);
+            if (index!=-1&&content.Versions[index][indexKey]===definition[indexKey]){
+                definition = updateObject(content.Versions[index], definition);
+                const j = JSON.stringify(definition, (key, value)=>{
+                    if (typeof(value)==="function"){
+                        parsFunc(definition[indexKey]+"_"+key, value, fpath).then((ful)=>{
+                        }, (rej)=>{
+                        });
+                        return {name: definition[indexKey]+"_"+key, path: fpath.replace("json", "js")};
                         }
-                    });
-                    
-                    
+                        return value;
+                    })
+                content.Versions[index] = JSON.parse(j);
+                message.push("Version "+definition[indexKey]+" of "+ fpath+" has been sucessfully updated");
+            }else {
+                const j = JSON.stringify(definition, (key, value)=>{
+                    if (typeof(value)==="function"){
+                        parsFunc(definition[indexKey]+"_"+key, value, fpath).then((ful)=>{
+                        }, (rej)=>{
+                        });
+                        return {name: definition[indexKey]+"_"+key, path: fpath.replace("json", "js")};
+                        }
+                        return value;
+                    })
+                content.Versions.splice(index==0?definition[indexKey]<content.Versions[0][indexKey]?0:1:index+1, 0, JSON.parse(j));
+                message.push("Version " + definition[indexKey] + " of " + fpath+" has been successfully added");
+            }
+        }
+        fs.readFile(path.join(basePath.getPath(), "definitions.json"), (err, dat)=>{
+            const definitions = [];
+            if (err){
+
+            }else{
+                definitions.push(...JSON.parse(dat.toString()).Definitions);
+            }
+            const len = definitions.length;
+            fpath.forEach((paths, index)=>{
+                const defind = searchDefinition(definitions, paths.path, false, true);
+                if (definitions[defind]!=paths.path){
+                    definitions.splice(defind==0&&paths.path<definitions[defind]?0:defind+1, 0, paths.path);
                 }
+                const wrtdefs = [];
+                for (let i = 0; i < paths.count; i++){
+                    wrtdefs.push(definition.shift());
+                }
+                fs.readFile(paths.path, (err, dat)=>{
+                    let content;
+                    let write = true;
+                    if (err){
+                        content = {indexKey: paths.indexKey, Versions:[]}
+                    }else{
+                        try{
+                            content=JSON.parse(dat.toString());
+                        } catch (e){
+                            message.push("Error reading " + paths.path + ": wait for next Backup cycle (every "+backupinterval +" minutes) and try again");
+                            write = false;
+                        }
+                        
+                    }
+                    if (write){
+                        wrtdefs.forEach((item)=>{
+                            updateadd(content, item, paths.path);
+                        })
+                        fs.writeFileSync(paths.path, JSON.stringify(content));
+                    }
+                })
+                
             })
+            if (definitions.length>len){
+                fs.writeFileSync(path.join(basePath.getPath(), "definitions.json"), JSON.stringify({Definitions:definitions}));
+            }
+            res("all done");
         })
     }else {
         rej({error:409, message:"Every Definition must have an Indexkey"})
