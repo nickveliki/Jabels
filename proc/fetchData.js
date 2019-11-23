@@ -199,6 +199,9 @@ const writeDefinition = (definition)=>{
                 good = false;
             }else{
                 fpath.push({path: path.join(basePath.getPath(), definition.path), indexKey: definition.indexKey, count: 1});
+                if (!fpath[fpath.length-1].path.endsWith(".json")){
+                fpath[fpath.length-1].path+=".json";
+                }
                 definition.indexKey = undefined;
                 definition.path=undefined;
                 definition = [definition];
