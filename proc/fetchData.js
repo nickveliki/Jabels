@@ -198,10 +198,10 @@ const writeDefinition = (definition)=>{
             if (!(definition.path&&definition.indexKey&&definition[definition.indexKey]!==undefined)){
                 good = false;
             }else{
-                definition = [definition];
                 fpath.push({path: path.join(basePath.getPath(), definition.path), indexKey: definition.indexKey, count: 1});
                 definition.indexKey = undefined;
                 definition.path=undefined;
+                definition = [definition];
             }
         }else{
             const sort = {};
