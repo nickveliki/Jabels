@@ -4,8 +4,8 @@ const basePath = require("./basePath");
 const reqText = (req)=>"const "+req.includes("/")?req.split("/")[req.split("/").length-1]:req+" = require('"+req+"');\r\n"
 //const argstext = (arg, index="")=>"const a" + index + " = "+arg+";\r\n";
 const fromString = (name, fun, p, req=[]) => {
-    if (p.endsWith(".json")){
-        p = p.replace(".json", ".js");
+    if (p.endsWith(".jdf")){
+        p = p.replace(".jdf", ".js");
     }else if (!p.endswith(".js")){
         p = p+".js";
     }

@@ -1,32 +1,52 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const parsFunc = require("./parseFunc");
 const basePath = require("./basePath");
 const callFunc = require("./callFunc");
-const setup = (relpath, backupinterval=60)=>{
+let sec;
+const setup = (relpath, {key, iv}, backupinterval=60)=>{
+    sec = {key, iv};
     basePath.setPath("..", relpath);
     const backup = require("./backup");
+
+    
     providePath(basePath.getPath());
-    backup();
     providePath(path.join(basePath.getPath(), "..", "dback"));
+    if (fs.existsSync(path.join(basePath.getPath(), "definitions.json"))){
+        const definitions = [];
+        JSON.parse(fs.readFileSync(path.join(basePath.getPath(), "definitions.json"))).Definitions.forEach((definition)=>{
+            console.log(definition);
+            const filecontent = JSON.parse(fs.readFileSync(definition));
+            definitions.push(...filecontent.Versions.map((Version)=>updateObject(Version, {path: definition.replace("json", "jdf").replace(basePath.getPath(), ""), indexKey: filecontent.indexKey})));
+            fs.unlinkSync(definition);
+            const backuppath = definition.replace(basePath.getPath(), path.join(basePath.getPath(), "..", "dback")+path.sep);
+            if (fs.existsSync(backuppath)){
+                fs.unlinkSync(backuppath);
+            }
+        })
+        writeDefinition(definitions);
+        fs.unlinkSync(path.join(basePath.getPath(), "definitions.json"));
+    }
+    backup({key, iv});
     setInterval(()=>{
-        backup();
+        backup({key, iv});
     }, backupinterval*60000);
 }
 const definitions = ({definition, strict}) =>{
     return new Promise((res, rej)=>{
-        fs.readFile(path.join(basePath.getPath(), "definitions.json"), (error, data)=>{
+        fs.readFile(path.join(basePath.getPath(), "definitions.jdf"), (error, data)=>{
             if (error){
                 rej({error:404, message:error});
             } else {
-                const dString = data.toString();
+                const dString = crypto.createDecipheriv("aes-128-gcm", sec.key, sec.iv).update(data).toString();
                 const defs = [];
                 try{
                     const Definitions = JSON.parse(dString).Definitions;
                     if (strict){
                         let searchterm;
                         if (typeof(definition)!=="string"){
-                            searchterm = (path.join(basePath.getPath(), definition.path)+".json");
+                            searchterm = (path.join(basePath.getPath(), definition.path)+".jdf");
                         }else{
                             searchterm=definition;
                         }
@@ -70,14 +90,14 @@ const searchDefinition = (definition, indexKeyValue, exact=true, index=false)=>{
         let search = definition.Versions?definition.Versions.map((item)=>item):definition.map((item)=>item);
         let bound = Math.round(search.length/2);
         while(search.length>1){
-            if (indexKeyValue<(Array.isArray(definition)?search[bound]:search[bound][definition.indexKey])){
+            if (indexKeyValue<(Array.isArray(definition)?search[bound].split("#")[0]:search[bound][definition.indexKey])){
                 search.splice(bound, search.length-bound);
             }else{
                 search.splice(0, bound);
             }
             bound=Math.round(search.length/2);
         }
-        if(!exact||search[0]===indexKeyValue||search[0][definition.indexKey]===indexKeyValue){
+        if(!exact||(search[0].split&&search[0].split("#")[0]===indexKeyValue)||search[0][definition.indexKey]===indexKeyValue){
             if(index){
                 return Array.isArray(definition)?definition.indexOf(search[0]):definition.Versions.indexOf(search[0]);
             }
@@ -89,12 +109,12 @@ const searchDefinition = (definition, indexKeyValue, exact=true, index=false)=>{
 const getDefinition = (definition)=>{
     return new Promise((res, rej)=>{
         definitions({definition, strict:true}).then((fulfilled)=>{
-            const path = fulfilled[0];
+            const path = fulfilled[0].split("#")[0];
             fs.readFile(path, (error, data)=>{
                 if (error){
                     rej({error:404, message:error});
                 } else {
-                    res(data.toString());
+                    res(crypto.createDecipheriv("aes-128-gcm", sec.key, Buffer.from(fulfilled[0].split("#")[1].split(","))).update(data).toString());
                 }
             })
         }, (rejected)=>{rej(rejected)});
@@ -199,8 +219,8 @@ const writeDefinition = (definition)=>{
                 good = false;
             }else{
                 fpath.push({path: path.join(basePath.getPath(), definition.path), indexKey: definition.indexKey, count: 1});
-                if (!fpath[fpath.length-1].path.endsWith(".json")){
-                fpath[fpath.length-1].path+=".json";
+                if (!fpath[fpath.length-1].path.endsWith(".jdf")){
+                fpath[fpath.length-1].path+=".jdf";
                 }
                 definition.indexKey = undefined;
                 definition.path=undefined;
@@ -234,7 +254,6 @@ const writeDefinition = (definition)=>{
             while(order.length>0){
                 definition.push(...sortAgain[order.shift()]);
             }
-            fs.writeFileSync(path.join(basePath.getPath(), "log.txt"), JSON.stringify(definition));
             let indexKey;
             let indexKeyValue;
             let ipath;
@@ -247,8 +266,8 @@ const writeDefinition = (definition)=>{
                 indexKey = item.indexKey;
                 indexKeyValue = item[indexKey];
                 fpath.push({path: path.join(basePath.getPath(), item.path), indexKey: item.indexKey, count: 1});
-                if (!fpath[fpath.length-1].path.endsWith(".json")){
-                fpath[fpath.length-1].path+=".json";
+                if (!fpath[fpath.length-1].path.endsWith(".jdf")){
+                fpath[fpath.length-1].path+=".jdf";
                 }
                 item.path = undefined;
                 item.indexKey=undefined;
@@ -297,18 +316,22 @@ const writeDefinition = (definition)=>{
                 message.push("Version " + definition[indexKey] + " of " + fpath+" has been successfully added");
             }
         }
-        fs.readFile(path.join(basePath.getPath(), "definitions.json"), (err, dat)=>{
+        fs.readFile(path.join(basePath.getPath(), "definitions.jdf"), (err, dat)=>{
             const definitions = [];
             if (err){
 
             }else{
-                definitions.push(...JSON.parse(dat.toString()).Definitions);
+                definitions.push(...JSON.parse(crypto.createDecipheriv("aes-128-gcm", sec.key, sec.iv).update(dat).toString()).Definitions);
             }
             const len = definitions.length;
-            fpath.forEach((paths, index)=>{
+            fpath.forEach((paths)=>{
                 const defind = searchDefinition(definitions, paths.path, false, true);
-                if (definitions[defind]!=paths.path){
-                    definitions.splice(defind==0&&paths.path<definitions[defind]?0:defind+1, 0, paths.path);
+                let iv;
+                if (!definitions[defind]||definitions[defind].split("#")[0]!=paths.path){
+                    iv = crypto.randomBytes(16);
+                    definitions.splice(defind==0&&paths.path<definitions[defind]?0:defind+1, 0, paths.path+"#"+JSON.parse(JSON.stringify(iv)).data);
+                }else{
+                    iv = Buffer.from(definitions[defind].split("#")[1].split(","));
                 }
                 const wrtdefs = [];
                 for (let i = 0; i < paths.count; i++){
@@ -321,9 +344,10 @@ const writeDefinition = (definition)=>{
                         content = {indexKey: paths.indexKey, Versions:[]}
                     }else{
                         try{
-                            content=JSON.parse(dat.toString());
+                            const readbuff = crypto.createDecipheriv("aes-128-gcm", sec.key, iv).update(dat);
+                            content=JSON.parse(readbuff.toString());
                         } catch (e){
-                            message.push("Error reading " + paths.path + ": wait for next Backup cycle (every "+backupinterval +" minutes) and try again");
+                            message.push("Error reading " + paths.path + ": wait for next Backup cycle and try again");
                             write = false;
                         }
                         
@@ -332,13 +356,14 @@ const writeDefinition = (definition)=>{
                         wrtdefs.forEach((item)=>{
                             updateadd(content, item, paths.path);
                         })
-                        fs.writeFileSync(paths.path, JSON.stringify(content));
+                        const wrtbuff = crypto.createCipheriv("aes-128-gcm", sec.key, iv).update(JSON.stringify(content));
+                        fs.writeFileSync(paths.path, wrtbuff);
                     }
                 })
                 
             })
             if (definitions.length>len){
-                fs.writeFileSync(path.join(basePath.getPath(), "definitions.json"), JSON.stringify({Definitions:definitions}));
+                fs.writeFileSync(path.join(basePath.getPath(), "definitions.jdf"), crypto.createCipheriv("aes-128-gcm", sec.key, sec.iv).update(JSON.stringify({Definitions:definitions})));
             }
             res("all done");
         })
@@ -409,13 +434,7 @@ const DeleteVersion = (...definitions)=>new Promise((res, rej)=>{
             const def = JSON.parse(ful);
             const indexes = definitions.map((item)=>item[def.indexKey]);
             def.Versions = def.Versions.filter((item)=>!indexes.includes(item[def.indexKey]));
-            fs.writeFile(path.join(basePath.getPath(), definitions[0].path+".json"), JSON.stringify(def), (error)=>{
-                if(error){
-                    rej({error: 500, message:error});
-                }else{
-                    res("Deletion complete");
-                }
-            })
+            fs.writeFileSync(path.join(basePath.getPath(), definitions[0].path+".jdf"), crypto.createCipheriv("aes-128-gcm", sec.key, sec.iv).update(JSON.stringify(def)));
         }, (nfl)=>{rej(nfl)})
     }
     

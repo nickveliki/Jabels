@@ -2,35 +2,41 @@ const fs = require("fs");
 const basepath = require("./basePath");
 const path = require("path");
 const backupPath = path.join(basepath.getPath(), "..", "dback");
+const crypto = require("crypto");
 const times = [];
 let longestbackup = 0;
 let fastestbackup = 0;
-module.exports = () =>{
+let sec;
+const backup = ({iv, key}) =>{
+    sec = {key, iv};
+    console.log(new Date().toUTCString());
     const starttime = new Date()-0;
     console.log("backup initiated");
-    if(fs.existsSync(path.join(basepath.getPath(), "definitions.json"))){
+    if(fs.existsSync(path.join(basepath.getPath(), "definitions.jdf"))){
         console.log("backup: definitions found");
     let definitions;
     try{
         console.log("backup: reading definitions");
-        definitions = JSON.parse(fs.readFileSync(path.join(basepath.getPath(), "definitions.json")).toString()).Definitions;
-        fs.writeFileSync(path.join(backupPath, "definitions.json"), JSON.stringify({Definitions: definitions}));
+        const defbuf = fs.readFileSync(path.join(basepath.getPath(), "definitions.jdf"));
+        definitions = JSON.parse(crypto.createDecipheriv("aes-128-gcm", sec.key, sec.iv).update(defbuf).toString()).Definitions;
+        console.log(definitions);
+        fs.writeFileSync(path.join(backupPath, "definitions.jdf"), defbuf);
     }catch (e) {
         console.log("backup: error in definitions");
-        definitions = getBackupDefinitions();
-        fs.writeFileSync(path.join(basepath.getPath(), "definitions.json"), JSON.stringify({Definitions: definitions}));
+        fs.writeFileSync(path.join(basepath.getPath(), "definitions.jdf"), getBackupDefinitions());
         console.log(e);
     }
     definitions.forEach((element) => {
-        let content;
         try{
-            console.log("backup: reading " + element);
-            content = JSON.parse(fs.readFileSync(element));
-            fs.writeFileSync(element.replace(basepath.getPath(), backupPath), JSON.stringify(content));
-        }catch (e){
-            console.log("backup: error in " + element);
-            content = JSON.parse(fs.readFileSync(element.replace(basepath.getPath(), backupPath)));
-            fs.writeFileSync(element, JSON.stringify(content));
+            console.log("backup: reading " + element.split("#")[0]);
+            const elbuf = fs.readFileSync(element.split("#")[0]);
+            const iv = Buffer.from(element.split("#")[1].split(","));
+            const reading = crypto.createDecipheriv("aes-128-gcm", sec.key, iv).update(elbuf);
+            content = JSON.parse(reading.toString());
+            fs.writeFileSync(element.split("#")[0].replace(basepath.getPath(), (backupPath+path.sep)), elbuf);
+         }catch (e){
+            console.log("error in "+ element.split("#")[0]);
+            fs.writeFileSync(element.split("#")[0], fs.readFileSync(element.split("#")[0].replace(basepath.getPath(), (backupPath+path.sep))));
         }
     });
 
@@ -53,8 +59,9 @@ console.log("median backup time " + meantime.toFixed(2) + "ms, longest backup ti
 }
 
 const getBackupDefinitions = ()=>{
-    if (fs.existsSync(path.join(backupPath, "definitions.json"))){
-            return JSON.parse(fs.readFileSync(path.join(backupPath, "definitions.json"))).Definitions;
+    if (fs.existsSync(path.join(backupPath, "definitions.jdf"))){
+            return fs.readFileSync(path.join(backupPath, "definitions.jdf"));
     }
     return [];
 }
+module.exports = backup;
