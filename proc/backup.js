@@ -62,3 +62,5 @@ const getBackupDefinitions = ()=>{
     }
     return [];
 }
+
+module.exports = backup;
