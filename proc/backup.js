@@ -7,7 +7,6 @@ const times = [];
 let longestbackup = 0;
 let fastestbackup = 0;
 const backup = ({iv, key}) =>{
-    console.log(iv, key);
     console.log(new Date().toUTCString());
     const starttime = new Date()-0;
     console.log("backup initiated");
@@ -63,4 +62,3 @@ const getBackupDefinitions = ()=>{
     }
     return [];
 }
-module.exports = backup;
