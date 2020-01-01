@@ -6,9 +6,8 @@ const crypto = require("crypto");
 const times = [];
 let longestbackup = 0;
 let fastestbackup = 0;
-let sec;
 const backup = ({iv, key}) =>{
-    sec = {key, iv};
+    console.log(iv, key);
     console.log(new Date().toUTCString());
     const starttime = new Date()-0;
     console.log("backup initiated");
@@ -18,7 +17,7 @@ const backup = ({iv, key}) =>{
     try{
         console.log("backup: reading definitions");
         const defbuf = fs.readFileSync(path.join(basepath.getPath(), "definitions.jdf"));
-        definitions = JSON.parse(crypto.createDecipheriv("aes-128-gcm", sec.key, sec.iv).update(defbuf).toString()).Definitions;
+        definitions = JSON.parse(crypto.createDecipheriv("aes-128-gcm", Buffer.isBuffer(key)?key:typeof(key)==="string"?Buffer.from(key, "base64"):Buffer.from(key), Buffer.isBuffer(iv)?iv:typeof(iv)==="string"?Buffer.from(iv, "base64"):Buffer.from(iv)).update(defbuf).toString()).Definitions;
         console.log(definitions);
         fs.writeFileSync(path.join(backupPath, "definitions.jdf"), defbuf);
     }catch (e) {
@@ -31,7 +30,7 @@ const backup = ({iv, key}) =>{
             console.log("backup: reading " + element.split("#")[0]);
             const elbuf = fs.readFileSync(element.split("#")[0]);
             const iv = Buffer.from(element.split("#")[1].split(","));
-            const reading = crypto.createDecipheriv("aes-128-gcm", sec.key, iv).update(elbuf);
+            const reading = crypto.createDecipheriv("aes-128-gcm", Buffer.isBuffer(key)?key:typeof(key)==="string"?Buffer.from(key, "base64"):Buffer.from(key), iv).update(elbuf);
             content = JSON.parse(reading.toString());
             fs.writeFileSync(element.split("#")[0].replace(basepath.getPath(), (backupPath+path.sep)), elbuf);
          }catch (e){

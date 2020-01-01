@@ -6,7 +6,7 @@ const basePath = require("./basePath");
 const callFunc = require("./callFunc");
 let sec;
 const setup = (relpath, {key, iv}, backupinterval=60)=>{
-    sec = {key, iv};
+    sec = {key: Buffer.isBuffer(key)?key:typeof(key)==="string"?Buffer.from(key, "base64"):Buffer.from(key), iv: Buffer.isBuffer(iv)?iv:typeof(iv)==="string"?Buffer.from(iv, "base64"):Buffer.from(iv)};
     basePath.setPath("..", relpath);
     const backup = require("./backup");
 
@@ -28,9 +28,9 @@ const setup = (relpath, {key, iv}, backupinterval=60)=>{
         writeDefinition(definitions);
         fs.unlinkSync(path.join(basePath.getPath(), "definitions.json"));
     }
-    backup({key, iv});
+    backup({iv, key});
     setInterval(()=>{
-        backup({key, iv});
+        backup({iv, key});
     }, backupinterval*60000);
 }
 const definitions = ({definition, strict}) =>{
