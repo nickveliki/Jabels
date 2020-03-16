@@ -80,7 +80,7 @@ const definitions = ({definition, strict}) =>{
 }
 const searchDefinition = (definition, indexKeyValue, exact=true, index=false)=>{
     if(!(typeof(indexKeyValue)==="string"||typeof(indexKeyValue)==="number")){
-        if(indexKeyValue[definition.indexKey]){
+        if(indexKeyValue[definition.indexKey]!=undefined){
             indexKeyValue=indexKeyValue[definition.indexKey];
         }else{
             return index?-1:undefined;
