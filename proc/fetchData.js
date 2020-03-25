@@ -420,7 +420,7 @@ const getDefault = (definition) =>{
         })
     })
 }
-const DeleteVersion = (...definitions)=>new Promise((res, rej)=>{
+const deleteVersion = (...definitions)=>new Promise((res, rej)=>{
     let samepath = true;
     if(definitions.length > 1){
         for (let i = 1; i < definitions.length&&samepath; i++){
@@ -455,7 +455,7 @@ module.exports = {
     getDefault,
     getTwigBFD,
     setup,
-    DeleteVersion,
+    deleteVersion,
     searchDefinition
 }
 
