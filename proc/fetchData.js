@@ -341,11 +341,14 @@ const writeDefinition = (definition)=>{
                     let content;
                     let write = true;
                     if (err){
-                        content = {indexKey: paths.indexKey, Versions:[]}
+                        content = {indexKey: paths.indexKey, Versions:[], iv}
                     }else{
                         try{
                             const readbuff = crypto.createDecipheriv("aes-128-gcm", sec.key, iv).update(dat);
                             content=JSON.parse(readbuff.toString());
+                            if (!content.iv){
+                                content.iv=iv;
+                            }
                         } catch (e){
                             message.push("Error reading " + paths.path + ": wait for next Backup cycle and try again");
                             write = false;
@@ -420,22 +423,27 @@ const getDefault = (definition) =>{
         })
     })
 }
-const deleteVersion = (...definitions)=>new Promise((res, rej)=>{
+const deleteVersion = (definitions)=>new Promise((res, rej)=>{
     let samepath = true;
-    if(definitions.length > 1){
+    if(Array.isArray(definitions)){
         for (let i = 1; i < definitions.length&&samepath; i++){
             samepath = definitions[i].path===definitions[i-1].path;
         }
+    }else{
+        definitions = [definitions];
     }
     if (!samepath){
         rej({error: 409, message:"can only target versions of the same definition together"});
-    } else{
+    } else if (definitions.length>0&&definitions[0]!=undefined){
         getDefinition(definitions[0]).then((ful)=>{
             const def = JSON.parse(ful);
             const indexes = definitions.map((item)=>item[def.indexKey]);
             def.Versions = def.Versions.filter((item)=>!indexes.includes(item[def.indexKey]));
-            fs.writeFileSync(path.join(basePath.getPath(), definitions[0].path+".jdf"), crypto.createCipheriv("aes-128-gcm", sec.key, sec.iv).update(JSON.stringify(def)));
-        }, (nfl)=>{rej(nfl)})
+            fs.writeFileSync(path.join(basePath.getPath(), definitions[0].path+".jdf"), crypto.createCipheriv("aes-128-gcm", sec.key, Buffer.from(def.iv.data)).update(JSON.stringify(def)));
+            res(indexes)
+        }, rej)
+    }else{
+        rej({error: 404, message:"empty deletion array"})
     }
     
     
